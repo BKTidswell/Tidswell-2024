@@ -67,4 +67,4 @@ for file_name in three_d_files:
 
         file_id = file_name[0:22]
 
-        fig.write_html("Saved 3D Plots Manual/{name}.html".format(name = file_id), auto_play=False)
+        fig.write_html("Saved 3D Plots/{name}.html".format(name = file_id), auto_play=False)
