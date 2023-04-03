@@ -17,7 +17,6 @@ In this folder there are a variety of subfolders that contain the files needed t
       Final 3D/ - Contains the 3D positions of fish
       Saved 3D Plots/ - Contains 3D plots of the 3D positions of fish
 
-
 ## Installing Environment
 
 
