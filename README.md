@@ -16,8 +16,20 @@ Inside of `2Dto3D/` there are two folders that contain all of the raw kinematic 
 
 ## 3D Data to School Kinematics CSV
 
+Now that you have the 3D data, you can take that and put it into the main folder labeled `3D_Finished_Fish_Data_4P_gaps/`. This folder is named this becuase it has the complete 3D data, with 4 points on each fish, and gaps in some of the traces, to differeentiate it from other older versions of this data. Now, simply run `python 3D_data_files_to_csv_4P.py`, which will calaculate the important kinematic values for the school and place that data where the R analysis code will look for it. 
 
 ## Turning Data
 
+Analyzing the turning data has two seperate parts to it. Firt you need to take the traces of individual fish and combine them randomly to create artifical "schools" and then you need to use the code in `Fish Turning Processor/` in order to determine out where the turns take place.
+
+### Artifical School Creation
+
+Look in the folder `Single Fish Combiner`. Here you will see two folders, `Single Fish/` which is where the traces of single fish swimming data is, and `Multi Data/` where the resulting files made from combining the single fish data into artifical "schools" of eight fish are stored. `dummy_data.csv` is used to create the combined schools. If you run `python Fish_Combiner.py` it will randomly combine the data in `Single Fish/` to make full eight fish traces in `Multi Data/`.
+
+### Fish Turning Processor
+
+You can take the CSVs created and placed into `Multi Data/` and move them to `Fish Turning Processor/Single_Fish_Data`. Then you can run `python get_turn_bias_midline.py`. This will create two files, `eight_fish_turning.csv` and `single_fish_turning.csv`. Move them into `Fish Data Analysis/Data` in order for the R code to find them in order to make the graphs and statistics.
 
 ## School Kinematics CSV to Paper Graphs and Stats
+
+Now simply open up `Fish Data Analysis.Rproj`. Run everything in `Results_Text.qmd` and `Paper_Figures.qmd`. This will provide you with the stats used in my resutls section, as well as the graphs that I made for the paper. 
