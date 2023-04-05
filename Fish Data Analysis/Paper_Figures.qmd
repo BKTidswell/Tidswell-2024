@@ -56,27 +56,23 @@ text_size = 16
 ## Fish Turning Graphs
 
 ```{r}
-annushka_turning_data <- read.csv("Data/Annushka_Turning_Data_Wall.csv") %>%
-                           #filter(Next.to.Wall == 0) %>%
-                           mutate(Flow = ifelse(Flow == "F0", "Still Water", "Flowing Water (2 BL/s)")) %>%
-                           mutate(Ablation = ifelse(Ablation %in% c("LN","TN"), "No Ablation", "Ablated")) %>%
-                           mutate(Darkness = ifelse(Darkness == "DN", "Light", "Dark")) %>%
+eight_fish_turning_data <- read.csv("Data/eight_fish_turning.csv") %>%
+                           mutate(Flow = ifelse(Flow == "0", "Still Water", "Flowing Water (2 BL/s)")) %>%
+                           mutate(Ablation = ifelse(Ablation  == "N", "No Ablation", "Ablated")) %>%
+                           mutate(Darkness = ifelse(Darkness == "N", "Light", "Dark")) %>%
                            mutate(Flow = factor(Flow), Ablation = factor(Ablation), Darkness = factor(Darkness)) %>%
                            mutate(Flow = fct_relevel(Flow, c("Still Water","Flowing Water (2 BL/s)"))) %>%
                            mutate(Ablation = fct_relevel(Ablation, c("No Ablation","Ablated"))) %>%
                            mutate(Darkness = fct_relevel(Darkness, c("Light","Dark"))) %>%
                            mutate(Flow_Ablation_Darkness = factor(paste(Flow,Ablation,Darkness,sep=", "))) %>%
-                           mutate(Fish_Num_Ratio = No..Fish.Right/8) %>%
-                           mutate(Fish_Ratio = paste(No..Fish.Left,No..Fish.Right,sep=":")) %>%
+                           mutate(Fish_Num_Ratio = Fish_Right/8) %>%
+                           mutate(Fish_Ratio = paste(Fish_Left,Fish_Right,sep=":")) %>%
                            filter(Fish_Ratio %in% c("7:0","6:1","5:2","4:3","3:4","2:5","1:6","0:7")) %>%
                            mutate(Fish_Ratio = fct_relevel(Fish_Ratio,
                                                            c("7:0","6:1","5:2","4:3",
                                                              "3:4","2:5","1:6","0:7"))) %>%
-                           mutate(turn_bool = ifelse(Turn.Direction == "right",1,0)) %>% 
-                           select(-c("Turn.Start.Frame","Turn.End.Frame","Fish","Appox.Turn.Angle","X","Next.to.Wall")) %>%
-                           rename("Turn_Dir" = "Turn.Direction")  %>%
-                           rename("Fish_Left" = "No..Fish.Left")  %>%
-                           rename("Fish_Right" = "No..Fish.Right")  %>%
+                           mutate(turn_bool = ifelse(Turn_Dir == 0,1,0)) %>% 
+                           select(-c("Singles")) %>%
                            mutate(Type = "Eight Fish")
 
 single_fish_turning_data <- read.csv("Data/single_fish_turning.csv") %>%
@@ -98,7 +94,7 @@ single_fish_turning_data <- read.csv("Data/single_fish_turning.csv") %>%
                            select(-c("Singles")) %>%
                            mutate(Type = "Combined Single")
 
-all_turning_data <- rbind(annushka_turning_data,single_fish_turning_data)
+all_turning_data <- rbind(eight_fish_turning_data,single_fish_turning_data)
 
 turning_data_sum <- all_turning_data %>% na.omit %>%
                                      group_by(Fish_Ratio,Fish_Num_Ratio,Flow,Ablation,Darkness,Flow_Ablation_Darkness,Type) %>%
@@ -107,6 +103,7 @@ turning_data_sum <- all_turning_data %>% na.omit %>%
                                                se_right_turn = sd_right_turn/sqrt(n()),
                                                n = n()) %>%
                                      ungroup()
+
 ```
 
 ### All the Plots of Eight Fish in Flow and Still, Raw and GLM
@@ -234,11 +231,11 @@ dark_eight_and_single_graph
 
 ```{r}
 turning_glm_still <- glm(turn_bool ~ Fish_Num_Ratio*(Ablation+Darkness),
-                         data = annushka_turning_data %>% filter(Flow == "Still Water"), family = binomial)
+                         data = eight_fish_turning_data %>% filter(Flow == "Still Water"), family = binomial)
 tgs_aov <- Anova(turning_glm_still)
 
 turning_glm_flow <- glm(turn_bool ~ Fish_Num_Ratio*(Ablation+Darkness),
-                         data = annushka_turning_data %>% filter(Flow == "Flowing Water (2 BL/s)"), family = binomial)
+                         data = eight_fish_turning_data %>% filter(Flow == "Flowing Water (2 BL/s)"), family = binomial)
 tgf_aov <- Anova(turning_glm_flow)
 
 turning_results <- tibble(Flow_or_Still = c("Still","Still","Still","Still","Still","Flow","Flow","Flow","Flow","Flow"),
@@ -710,139 +707,6 @@ Anova(groups_glm_flow, test.statistic="F")
 
 ```
 
-### School Stats Table Here
-
-```{r}
-
-nnd_glmer_still <- lmer(NND ~ Ablation*Darkness + (1|Date), data = school_data %>% filter(Flow == "Still Water"))
-nnd_s_aov_me <- Anova(nnd_glmer_still)
-
-nnd_glmer_flow <- lmer(NND ~ Ablation*Darkness + (1|Date), data = school_data %>% filter(Flow == "Flowing Water (2 BL/s)"))
-nnd_f_aov_me <- Anova(nnd_glmer_flow)
-
-height_glmer_still <- lmer(School_Height ~ Ablation*Darkness + (1|Date), data = school_data %>% filter(Flow == "Still Water"))
-height_s_aov_me <- Anova(height_glmer_still)
-
-height_glmer_flow <- lmer(School_Height ~ Ablation*Darkness + (1|Date), data = school_data %>% filter(Flow == "Flowing Water (2 BL/s)"))
-height_f_aov_me <- Anova(height_glmer_flow)
-
-polar_glmer_still <- lmer(School_Polar ~ Ablation*Darkness + (1|Date), data = school_data %>% filter(Flow == "Still Water"))
-polar_s_aov_me <- Anova(polar_glmer_still)
-
-polar_glmer_flow <- lmer(School_Polar ~ Ablation*Darkness + (1|Date), data = school_data %>% filter(Flow == "Flowing Water (2 BL/s)"))
-polar_f_aov_me <- Anova(polar_glmer_flow)
-
-speed_glmer_still <- lmer(School_Speed ~ Ablation*Darkness + (1|Date), data = school_data %>% filter(Flow == "Still Water"))
-speed_s_aov_me <- Anova(speed_glmer_still)
-
-speed_glmer_flow <- lmer(School_Speed ~ Ablation*Darkness + (1|Date), data = school_data %>% filter(Flow == "Flowing Water (2 BL/s)"))
-speed_f_aov_me <- Anova(speed_glmer_flow)
-
-area_glmer_still <- lmer(Area ~ Ablation*Darkness + (1|Date), data = school_data %>% filter(Flow == "Still Water"))
-area_s_aov_me <- Anova(area_glmer_still)
-
-area_glmer_flow <- lmer(Area ~ Ablation*Darkness + (1|Date), data = school_data %>% filter(Flow == "Flowing Water (2 BL/s)"))
-area_f_aov_me <- Anova(area_glmer_flow)
-
-groups_glmer_still <- lmer(Groups ~ Ablation*Darkness + (1|Date), data = school_data %>% filter(Flow == "Still Water"))
-groups_s_aov_me <- Anova(groups_glmer_still)
-
-groups_glmer_flow <- lmer(Groups ~ Ablation*Darkness + (1|Date), data = school_data %>% filter(Flow == "Flowing Water (2 BL/s)"))
-groups_f_aov_me <- Anova(groups_glmer_flow)
-
-
-
-glmm_school_stats_table <- tibble(Stat = c(rep("NND",4),rep("Height",4),rep("Polarization",4),rep("Speed",4),rep("Area",4),rep("Groups",4)),
-       Flow_or_Still = rep( c(rep("Still",2) , rep("Flow",2)), 6),
-       Condition = rep(c("Ablation","Darkness"), 12),
-       DF = rep(c(length(nnd_glmer_still@resp$y)-3,length(nnd_glmer_flow@resp$y)-3),12),
-       Chisq = c(nnd_s_aov_me$Chisq[1:2],nnd_f_aov_me$Chisq[1:2],
-                 height_s_aov_me$Chisq[1:2],height_f_aov_me$Chisq[1:2],
-                 polar_s_aov_me$Chisq[1:2],polar_f_aov_me$Chisq[1:2],
-                 speed_s_aov_me$Chisq[1:2],speed_f_aov_me$Chisq[1:2],
-                 area_s_aov_me$Chisq[1:2],area_f_aov_me$Chisq[1:2],
-                 groups_s_aov_me$Chisq[1:2],groups_f_aov_me$Chisq[1:2]),
-       
-       P_Val = c(nnd_s_aov_me$`Pr(>Chisq)`[1:2],nnd_f_aov_me$`Pr(>Chisq)`[1:2],
-                 height_s_aov_me$`Pr(>Chisq)`[1:2],height_f_aov_me$`Pr(>Chisq)`[1:2],
-                 polar_s_aov_me$`Pr(>Chisq)`[1:2],polar_f_aov_me$`Pr(>Chisq)`[1:2],
-                 speed_s_aov_me$`Pr(>Chisq)`[1:2],speed_f_aov_me$`Pr(>Chisq)`[1:2],
-                 area_s_aov_me$`Pr(>Chisq)`[1:2],area_f_aov_me$`Pr(>Chisq)`[1:2],
-                 groups_s_aov_me$`Pr(>Chisq)`[1:2],groups_f_aov_me$`Pr(>Chisq)`[1:2]),
-       
-       Is_Sig = P_Val < 0.05)
-
-
-glmm_school_stats_table
-
-
-nnd_glm_still <- glm(NND ~ Ablation*Darkness, data = school_data %>% filter(Flow == "Still Water"))
-nnd_s_aov <- Anova(nnd_glm_still)
-
-nnd_glm_flow <- glm(NND ~ Ablation*Darkness, data = school_data %>% filter(Flow == "Flowing Water (2 BL/s)"))
-nnd_f_aov <- Anova(nnd_glm_flow)
-
-height_glm_still <- glm(School_Height ~ Ablation*Darkness, data = school_data %>% filter(Flow == "Still Water"))
-height_s_aov <- Anova(height_glm_still)
-
-height_glm_flow <- glm(School_Height ~ Ablation*Darkness, data = school_data %>% filter(Flow == "Flowing Water (2 BL/s)"))
-height_f_aov <- Anova(height_glm_flow)
-
-polar_glm_still <- glm(School_Polar ~ Ablation*Darkness, data = school_data %>% filter(Flow == "Still Water"))
-polar_s_aov <- Anova(polar_glm_still)
-
-polar_glm_flow <- glm(School_Polar ~ Ablation*Darkness, data = school_data %>% filter(Flow == "Flowing Water (2 BL/s)"))
-polar_f_aov <- Anova(polar_glm_flow)
-
-speed_glm_still <- glm(School_Speed ~ Ablation*Darkness, data = school_data %>% filter(Flow == "Still Water"))
-speed_s_aov <- Anova(speed_glm_still)
-
-speed_glm_flow <- glm(School_Speed ~ Ablation*Darkness, data = school_data %>% filter(Flow == "Flowing Water (2 BL/s)"))
-speed_f_aov <- Anova(speed_glm_flow)
-
-area_glm_still <- glm(Area ~ Ablation*Darkness, data = school_data %>% filter(Flow == "Still Water"))
-area_s_aov <- Anova(area_glm_still)
-
-area_glm_flow <- glm(Area ~ Ablation*Darkness, data = school_data %>% filter(Flow == "Flowing Water (2 BL/s)"))
-area_f_aov <- Anova(area_glm_flow)
-
-groups_glm_still <- glm(Groups ~ Ablation*Darkness, data = school_data %>% filter(Flow == "Still Water"))
-groups_s_aov <- Anova(groups_glm_still)
-
-groups_glm_flow <- glm(Groups ~ Ablation*Darkness, data = school_data %>% filter(Flow == "Flowing Water (2 BL/s)"))
-groups_f_aov <- Anova(groups_glm_flow)
-
-
-glm_school_stats_table <- tibble(Stat = c(rep("NND",4),rep("Height",4),rep("Polarization",4),rep("Speed",4),rep("Area",4),rep("Groups",4)),
-       Flow_or_Still = rep( c(rep("Still",2) , rep("Flow",2)), 6),
-       Condition = rep(c("Ablation","Darkness"), 12),
-       DF = rep(c(length(nnd_glm_still$y)-3,length(nnd_glm_flow$y)-3),12),
-       Chisq = c(nnd_s_aov$`LR Chisq`[1:2],nnd_f_aov$`LR Chisq`[1:2],
-                 height_s_aov$`LR Chisq`[1:2],height_f_aov$`LR Chisq`[1:2],
-                 polar_s_aov$`LR Chisq`[1:2],polar_f_aov$`LR Chisq`[1:2],
-                 speed_s_aov$`LR Chisq`[1:2],speed_f_aov$`LR Chisq`[1:2],
-                 area_s_aov$`LR Chisq`[1:2],area_f_aov$`LR Chisq`[1:2],
-                 groups_s_aov$`LR Chisq`[1:2],groups_f_aov$`LR Chisq`[1:2]),
-       
-       P_Val = c(nnd_s_aov$`Pr(>Chisq)`[1:2],nnd_f_aov$`Pr(>Chisq)`[1:2],
-                 height_s_aov$`Pr(>Chisq)`[1:2],height_f_aov$`Pr(>Chisq)`[1:2],
-                 polar_s_aov$`Pr(>Chisq)`[1:2],polar_f_aov$`Pr(>Chisq)`[1:2],
-                 speed_s_aov$`Pr(>Chisq)`[1:2],speed_f_aov$`Pr(>Chisq)`[1:2],
-                 area_s_aov$`Pr(>Chisq)`[1:2],area_f_aov$`Pr(>Chisq)`[1:2],
-                 groups_s_aov$`Pr(>Chisq)`[1:2],groups_f_aov$`Pr(>Chisq)`[1:2]),
-       
-       Is_Sig = P_Val < 0.05)
-
-
-glm_school_stats_table
-
-sum(glm_school_stats_table$Is_Sig == glmm_school_stats_table$Is_Sig)
-sum(glm_school_stats_table$Is_Sig == 1 & glmm_school_stats_table$Is_Sig == 1) / sum(glm_school_stats_table$Is_Sig == 1)
-
-
-```
-
-
 ### Now we combine them
 
 ```{r}
@@ -856,24 +720,5 @@ school_stats_mega_plot <- ggarrange(nnd_still, nnd_flow,
 ggsave("Paper Figures/school_stats_mega_plot.png", school_stats_mega_plot, width = 10, height = 17)
 ```
 
-Parallax
-
-```{r}
-para_vals <- read.csv("Data/Parallax_Distances.csv") %>% mutate(BLs = Distance / 200)
-
-breaks <- c("0.1")
-
-para_plot <- ggplot(para_vals, aes(X, Y, z = BLs))+
-  geom_contour_filled(bins = 5)+
-  scale_fill_viridis_d("Projection Error (BL)", 
-                       labels = c("< 0.1", "0.1 - 0.2", "0.2 - 0.3","0.3 - 0.4","0.4 - 0.5"))+
-  theme_classic()+
-  coord_fixed() +
-  ylab("Vertical Distance from Principal Point (pixels)")+
-  xlab("Hoizontal Distance from Principal Point (pixels)")+ 
-  theme(text = element_text(size = 20))  
-
-ggsave("Paper Figures/parallax_model.png", para_plot, width = 14, height = 7)
-```
 
 

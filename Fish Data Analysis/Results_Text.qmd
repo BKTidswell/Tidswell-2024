@@ -333,27 +333,23 @@ paste0("Manipulating the lateral line of the fish with gentamicin produced relat
 ### Turning Results Text
 
 ```{r}
-annushka_turning_data <- read.csv("Data/Annushka_Turning_Data_Wall.csv") %>%
-                           #filter(Next.to.Wall == 0) %>%
-                           mutate(Flow = ifelse(Flow == "F0", "Still Water", "Flowing Water (2 BL/s)")) %>%
-                           mutate(Ablation = ifelse(Ablation %in% c("LN","TN"), "No Ablation", "Ablated")) %>%
-                           mutate(Darkness = ifelse(Darkness == "DN", "Light", "Dark")) %>%
+eight_fish_turning_data <- read.csv("Data/eight_fish_turning.csv") %>%
+                           mutate(Flow = ifelse(Flow == "0", "Still Water", "Flowing Water (2 BL/s)")) %>%
+                           mutate(Ablation = ifelse(Ablation  == "N", "No Ablation", "Ablated")) %>%
+                           mutate(Darkness = ifelse(Darkness == "N", "Light", "Dark")) %>%
                            mutate(Flow = factor(Flow), Ablation = factor(Ablation), Darkness = factor(Darkness)) %>%
                            mutate(Flow = fct_relevel(Flow, c("Still Water","Flowing Water (2 BL/s)"))) %>%
                            mutate(Ablation = fct_relevel(Ablation, c("No Ablation","Ablated"))) %>%
                            mutate(Darkness = fct_relevel(Darkness, c("Light","Dark"))) %>%
                            mutate(Flow_Ablation_Darkness = factor(paste(Flow,Ablation,Darkness,sep=", "))) %>%
-                           mutate(Fish_Num_Ratio = No..Fish.Right/8) %>%
-                           mutate(Fish_Ratio = paste(No..Fish.Left,No..Fish.Right,sep=":")) %>%
+                           mutate(Fish_Num_Ratio = Fish_Right/8) %>%
+                           mutate(Fish_Ratio = paste(Fish_Left,Fish_Right,sep=":")) %>%
                            filter(Fish_Ratio %in% c("7:0","6:1","5:2","4:3","3:4","2:5","1:6","0:7")) %>%
                            mutate(Fish_Ratio = fct_relevel(Fish_Ratio,
                                                            c("7:0","6:1","5:2","4:3",
                                                              "3:4","2:5","1:6","0:7"))) %>%
-                           mutate(turn_bool = ifelse(Turn.Direction == "right",1,0)) %>% 
-                           select(-c("Turn.Start.Frame","Turn.End.Frame","Fish","Appox.Turn.Angle","X","Next.to.Wall")) %>%
-                           rename("Turn_Dir" = "Turn.Direction")  %>%
-                           rename("Fish_Left" = "No..Fish.Left")  %>%
-                           rename("Fish_Right" = "No..Fish.Right")  %>%
+                           mutate(turn_bool = ifelse(Turn_Dir == 0,1,0)) %>% 
+                           select(-c("Singles")) %>%
                            mutate(Type = "Eight Fish")
 
 single_fish_turning_data <- read.csv("Data/single_fish_turning.csv") %>%
@@ -375,16 +371,16 @@ single_fish_turning_data <- read.csv("Data/single_fish_turning.csv") %>%
                            select(-c("Singles")) %>%
                            mutate(Type = "Combined Single")
 
-all_turning_data <- rbind(annushka_turning_data,single_fish_turning_data)
+all_turning_data <- rbind(eight_fish_turning_data,single_fish_turning_data)
 ```
 
 ```{r}
 turning_glm_still <- glm(turn_bool ~ Fish_Num_Ratio*(Ablation+Darkness),
-                         data = annushka_turning_data %>% filter(Flow == "Still Water"), family = binomial)
+                         data = eight_fish_turning_data %>% filter(Flow == "Still Water"), family = binomial)
 tgs_aov <- Anova(turning_glm_still)
 
 turning_glm_flow <- glm(turn_bool ~ Fish_Num_Ratio*(Ablation+Darkness),
-                         data = annushka_turning_data %>% filter(Flow == "Flowing Water (2 BL/s)"), family = binomial)
+                         data = eight_fish_turning_data %>% filter(Flow == "Flowing Water (2 BL/s)"), family = binomial)
 tgf_aov <- Anova(turning_glm_flow)
 
 turning_results <- tibble(Flow_or_Still = c("Still","Still","Still","Still","Still","Flow","Flow","Flow","Flow","Flow"),

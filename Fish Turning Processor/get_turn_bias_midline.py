@@ -207,7 +207,7 @@ f = open("eight_fish_turning.csv", "w")
 
 f.write("Year,Month,Day,Trial,Ablation,Darkness,Singles,Flow,Turn_Dir,Fish_Left,Fish_Right\n")
 
-folder = "../3D_Finished_Fish_Data_4P_gaps/"
+folder = "../2Dto3D/V1 CSVs/"
 
 for file_name in os.listdir(folder):
     if file_name.endswith(".csv"):
