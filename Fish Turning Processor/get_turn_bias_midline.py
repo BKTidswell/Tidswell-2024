@@ -14,6 +14,7 @@ fish_names = ["individual1","individual2",
               "individual5","individual6",
               "individual7","individual8"]
 
+#Allows the removal of turns too close to the edges
 x_edges = [250,2250]
 y_edges = [200,900]
 
@@ -183,11 +184,30 @@ def process_trial(folder,datafile):
                                       Fish_Left = num_LR[1],
                                       Fish_Right = num_LR[0]))
 
+# Process the single fish "schools"
+
 f = open("single_fish_turning.csv", "w")
 
 f.write("Year,Month,Day,Trial,Ablation,Darkness,Singles,Flow,Turn_Dir,Fish_Left,Fish_Right\n")
 
 folder = "Single_Fish_Data/"
+
+for file_name in os.listdir(folder):
+    if file_name.endswith(".csv"):
+        print(file_name)
+        
+        process_trial(folder,file_name)
+
+f.close()
+
+
+# Process the real schools
+
+f = open("eight_fish_turning.csv", "w")
+
+f.write("Year,Month,Day,Trial,Ablation,Darkness,Singles,Flow,Turn_Dir,Fish_Left,Fish_Right\n")
+
+folder = "../3D_Finished_Fish_Data_4P_gaps/"
 
 for file_name in os.listdir(folder):
     if file_name.endswith(".csv"):

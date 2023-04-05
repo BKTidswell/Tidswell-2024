@@ -1420,10 +1420,10 @@ for trial in trials:
         fish_raw_comp_dataframe = fish_raw_comp_dataframe.append(trial.return_raw_comp_vals())
         fish_school_dataframe = fish_school_dataframe.append(trial.return_school_vals())
 
-fish_sigular_dataframe.to_csv("Fish_Individual_Values_3D.csv")
-fish_comp_dataframe.to_csv("Fish_Comp_Values_3D.csv")
-fish_raw_comp_dataframe.to_csv("Fish_Raw_Comp_Values_3D.csv")
-fish_school_dataframe.to_csv("Fish_School_Values_3D.csv")
+fish_sigular_dataframe.to_csv("Fish Data Analysis/Data/Fish_Individual_Values_3D.csv")
+fish_comp_dataframe.to_csv("Fish Data Analysis/Data/Fish_Comp_Values_3D.csv")
+fish_raw_comp_dataframe.to_csv("Fish Data Analysis/Data/Fish_Raw_Comp_Values_3D.csv")
+fish_school_dataframe.to_csv("Fish Data Analysis/Data/Fish_School_Values_3D.csv")
 
 # #Recalculate when new data is added
 # all_trials_tailbeat_lens = []
