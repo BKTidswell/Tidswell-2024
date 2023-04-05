@@ -12,7 +12,7 @@ header = list(range(4))
 num_fish = 8
 body_parts = ["head","midline2","tailbase","tailtip"]
 
-file_folder = "Final 3D Manual/"
+file_folder = "Final 3D/"
 
 three_d_files = os.listdir(file_folder)
 

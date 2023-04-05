@@ -24,12 +24,6 @@ body_parts = ["head","midline2","tailbase","tailtip"]
 def DLTdvRecon(Ls, uvs):
 
     #uvs are in format [[v1_xs,v1_ys],[v2_xs,v2_ys]]
-
-    print(Ls)
-    print(uvs)
-
-    sys.exit()
-
     Ls = np.array(Ls)
     uvs = np.array(uvs)
 
