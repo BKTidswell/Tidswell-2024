@@ -56,12 +56,10 @@ def turn_frames(head_x_data,head_y_data,mid_x_data,mid_y_data):
     #Get the moving average. It's a window I just chose, but it works well I suppose
     dot_prods = moving_average(dot_prods,10)
 
-    #Instead of setting an arbitray amount, look at ones that are more sificantly different from the rest. 
-    #Though I suppose that if they turned a lot this wouldn't work well...
-    #okay commenting it out for now and just picking a number
-
     #peak_prom = np.std(dot_prods)*1.5
-    peak_prom = 0.3
+    #Equal to 45 degrees
+    #1 minus the value becasue we flipped it up above.
+    peak_prom = 1-0.7071068
 
     #Now zero out all the areas less than the peak prom
     dot_prods_over_min = np.where(dot_prods<=peak_prom,0,1)*dot_prods
@@ -199,22 +197,4 @@ for file_name in os.listdir(folder):
         process_trial(folder,file_name)
 
 f.close()
-
-
-# Process the real schools
-
-f = open("eight_fish_turning.csv", "w")
-
-f.write("Year,Month,Day,Trial,Ablation,Darkness,Singles,Flow,Turn_Dir,Fish_Left,Fish_Right\n")
-
-folder = "../2Dto3D/V1 CSVs/"
-
-for file_name in os.listdir(folder):
-    if file_name.endswith(".csv"):
-        print(file_name)
-        
-        process_trial(folder,file_name)
-
-f.close()
-
 
