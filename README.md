@@ -33,3 +33,27 @@ You can take the CSVs created and placed into `Multi Data/` and move them to `Fi
 ## School Kinematics CSV to Paper Graphs and Stats
 
 Now simply open up `Fish Data Analysis.Rproj`. Run everything in `Results_Text.qmd` and `Paper_Figures.qmd`. This will provide you with the stats used in my resutls section, as well as the graphs that I made for the paper. 
+
+# Working With the Data on Your Own
+
+The raw CSVs in the origional dataset are created by DeepLabCut, and as such, have a very particular file format that is best opened with Pandas. This code snippet below shows how to open them up as a Pandas MultiIndex.
+
+```
+import pandas as pd
+
+header = list(range(4))
+
+fish_data = pd.read_csv(filename, index_col=0, header=header)
+```
+
+Now with it open, you can access columns of data by the name of each layer in the MultiIndex. This example code shows how you would get the column that contains the X value of the midline of the eighth fish.
+
+```
+scorer = fish_data.keys()[0][0]
+
+fish_eight_midline_x_values = fish_data[scorer]["individual8"]["midline2"]["x"]
+```
+
+For each CSV there are eight fish (`indvidual1` to `indvidual8`) and there are four body points that are labeled (`head`,`midline2`,`tailbase`,`tailtip`). `midline2` is there for legacy reasons. 
+
+![Image of a fish with bodyparts labeled as head, midline2, tailbase, and tailtip](/Images/Fish_Labels.png)
