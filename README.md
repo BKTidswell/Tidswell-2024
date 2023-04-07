@@ -28,7 +28,7 @@ Look in the folder `Single Fish Combiner`. Here you will see two folders, `Singl
 
 ### Fish Turning Processor
 
-You can take the CSVs created and placed into `Multi Data/` and move them to `Fish Turning Processor/Single_Fish_Data`. Then you can run `python get_turn_bias_midline.py`. This will create two files, `eight_fish_turning.csv` and `single_fish_turning.csv`. Move them into `Fish Data Analysis/Data` in order for the R code to find them in order to make the graphs and statistics.
+You can take the CSVs created and placed into `Multi Data/` and move them to `Fish Turning Processor/Single_Fish_Data`. Then you can run `python get_turn_bias_midline.py`. This will create `single_fish_turning.csv`. Move it into `Fish Data Analysis/Data` in order for the R code to find it in order to make the graphs and statistics. While you are there you will notice `Annushka_Turning_Data_Wall.csv`! This is the hand coded turning data that we will use in the graphs and statistics.
 
 ## School Kinematics CSV to Paper Graphs and Stats
 
