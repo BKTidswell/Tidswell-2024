@@ -1,4 +1,4 @@
-# Code for (Title of this Paper)
+# Code for The Role of Vision and Lateral Line Sensing for Schooling in Giant Danios (Devario Aequipinnatus)
 
 Welcome to this Github respository for (Title of this Paper). If you are here, I assume you're interested in doing a deep dive into the code that I wrote to turn the positional data of fish into schooling kinematics. To that end this guide aims to walk you through running all the code from start to finish, and to explain the purpose the code files here. If you run into any issues with it feel free to raise an issue here or email me at b.k.tidswell@gmail.com. 
 
