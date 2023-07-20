@@ -7,14 +7,16 @@ import os
 header_3 = list(range(3))
 header_4 = list(range(4))
 
-data_folders = ["Single Fish/light/still/","Single Fish/light/flow/",
-                "Single Fish/dark/still/","Single Fish/dark/flow/",
-                "Single Fish/ablation/still/","Single Fish/ablation/flow/"]
+data_folders = ["Good Single Fish/light/still/","Good Single Fish/light/flow/",
+                "Good Single Fish/dark/still/","Good Single Fish/dark/flow/",
+                "Good Single Fish/ablation/still/","Good Single Fish/ablation/flow/"]
 
 for data_folder in data_folders:
 
     if os.path.exists(data_folder+".DS_store"):
       os.remove(data_folder+".DS_store")
+    else:
+      print("No DS Store") 
 
     data_files = os.listdir(data_folder)
 

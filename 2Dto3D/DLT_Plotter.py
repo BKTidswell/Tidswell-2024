@@ -9,15 +9,17 @@ import sys
 #Header list for reading the raw location CSVs
 header = list(range(4))
 
+fish_len = 0.083197
+
 num_fish = 8
 body_parts = ["head","midline2","tailbase","tailtip"]
 
-file_folder = "Final 3D/"
+file_folder = "Final 3D Manual/"
 
 three_d_files = os.listdir(file_folder)
 
 for file_name in three_d_files:
-    if file_name.endswith(".csv"):
+    if file_name.endswith(".csv"): #and "03_25_10" in file_name:
 
         print(file_name)
 
@@ -67,4 +69,21 @@ for file_name in three_d_files:
 
         file_id = file_name[0:22]
 
-        fig.write_html("Saved 3D Plots/{name}.html".format(name = file_id), auto_play=False)
+        fig.write_html("Saved 3D Plots Manual/{name}_animated.html".format(name = file_id), auto_play=False)
+
+
+        fish_len
+
+        head_df = df[df['BodyPart'] == "head"] 
+
+        head_df["x"] = head_df["x"]/fish_len
+        head_df["y"] = head_df["y"]/fish_len
+        head_df["z"] = head_df["z"]/fish_len
+
+        fig = px.line_3d(head_df,x="x", y="y", z="z", color="Fish", hover_data = ["BodyPart"])
+
+        fig.layout.scene.aspectratio = {'x':1, 'y':1, 'z':1}
+
+        #fig.show()
+
+        fig.write_html("Saved 3D Plots Manual/{name}_trace.html".format(name = file_id), auto_play=False)

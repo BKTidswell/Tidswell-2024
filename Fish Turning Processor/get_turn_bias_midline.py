@@ -14,11 +14,10 @@ fish_names = ["individual1","individual2",
               "individual5","individual6",
               "individual7","individual8"]
 
-#Allows the removal of turns too close to the edges
 x_edges = [250,2250]
 y_edges = [200,900]
 
-csv_output = "{Year},{Month},{Day},{Trial},{Ablation},{Darkness},{Singles},{Flow},{Turn_Dir},{Fish_Left},{Fish_Right}\n"
+csv_output = "{Year},{Month},{Day},{Trial},{Ablation},{Darkness},{Singles},{Flow},{Frame},{Fish},{Turn_Dir},{Fish_Left},{Fish_Right}\n"
 
 def calc_mag(p1,p2):
     return math.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2)
@@ -56,10 +55,12 @@ def turn_frames(head_x_data,head_y_data,mid_x_data,mid_y_data):
     #Get the moving average. It's a window I just chose, but it works well I suppose
     dot_prods = moving_average(dot_prods,10)
 
+    #Instead of setting an arbitray amount, look at ones that are more sificantly different from the rest. 
+    #Though I suppose that if they turned a lot this wouldn't work well...
+    #okay commenting it out for now and just picking a number
+
     #peak_prom = np.std(dot_prods)*1.5
-    #Equal to 45 degrees
-    #1 minus the value becasue we flipped it up above.
-    peak_prom = 1-0.7071068
+    peak_prom = 0.3
 
     #Now zero out all the areas less than the peak prom
     dot_prods_over_min = np.where(dot_prods<=peak_prom,0,1)*dot_prods
@@ -178,15 +179,15 @@ def process_trial(folder,datafile):
                                       Darkness = darkness,
                                       Singles = "N",
                                       Flow = flow,
+                                      Frame = frame,
+                                      Fish = fish,
                                       Turn_Dir = turn_dirs[i],
                                       Fish_Left = num_LR[1],
                                       Fish_Right = num_LR[0]))
 
-# Process the single fish "schools"
-
 f = open("single_fish_turning.csv", "w")
 
-f.write("Year,Month,Day,Trial,Ablation,Darkness,Singles,Flow,Turn_Dir,Fish_Left,Fish_Right\n")
+f.write("Year,Month,Day,Trial,Ablation,Darkness,Singles,Flow,Frame,Fish,Turn_Dir,Fish_Left,Fish_Right\n")
 
 folder = "Single_Fish_Data/"
 
@@ -197,4 +198,5 @@ for file_name in os.listdir(folder):
         process_trial(folder,file_name)
 
 f.close()
+
 

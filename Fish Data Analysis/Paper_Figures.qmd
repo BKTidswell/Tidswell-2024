@@ -289,6 +289,7 @@ ggsave("Paper Figures/turning_single_test_plot.png", turning_single_test_plot, w
 
 ```{r}
 school_data <- read.csv("Data/Fish_School_Values_3D.csv")
+
 school_data <- na.omit(school_data)
 
 school_data <- school_data %>% mutate(Flow = ifelse(Flow == "0", "Still Water", "Flowing Water (2 BL/s)")) %>%
@@ -319,6 +320,8 @@ school_data <- school_data %>% mutate(Flow = ifelse(Flow == "0", "Still Water", 
                                   Height_Mean_Val = mean(School_Height), Height_SD_Val = sd(School_Height)) %>%
                            ungroup()
 ```
+
+
 
 ### NND Plot
 
@@ -364,7 +367,7 @@ nnd_flow <- ggplot(school_data %>% filter(Flow == "Flowing Water (2 BL/s)"),
   ylab("School NND (BL)") +
   theme_light()+ 
   theme(legend.position = "none") +
-  ylim(0,2)+
+  #ylim(0,2)+
   stat_compare_means(comparisons = my_comparisons, label = "p.signif", hide.ns = TRUE) +
   theme(axis.text.x = element_text(size = text_size),
         axis.text.y = element_text(size = text_size),
@@ -687,7 +690,6 @@ Anova(groups_glm_flow, test.statistic="F")
 
 ```
 
-
 ### Now we combine them
 
 ```{r}
@@ -721,7 +723,6 @@ para_plot <- ggplot(para_vals, aes(X, Y, z = BLs))+
 ggsave("Paper Figures/parallax_model.png", para_plot, width = 14, height = 7)
 ```
 
-
 Autocorrelation Figure
 
 ```{r}
@@ -745,7 +746,9 @@ for(i in seq(1:5)){
   print(i)
   
   new_autocorrs <- school_data_no_removals %>% group_by(Date_Trial) %>%
-                    filter(!Date_Trial %in% c("2021_3_25_30","2020_7_28_29")) %>%
+                    filter(!Date_Trial %in% c("2021_3_25_30","2020_7_28_29","2021_10_6_34",
+                                              "2021_7_7_16","2021_3_25_7","2021_3_25_22",
+                                              "2021_8_3_8")) %>%
                     summarise(nnd_corr = abs(cor.test(NND, lag(NND, n = i))$estimate),
                               nnd_p = cor.test(NND, lag(NND, n = i))$p.value,
                               polar_corr = abs(cor.test(School_Polar, lag(School_Polar, n = i))$estimate),
@@ -813,6 +816,3 @@ lag_plots <- ggarrange(
 ggsave("Paper Figures/Different_Lag_Figures.png", lag_plots, width = 7, height = 7)
 
 ```
-
-
-

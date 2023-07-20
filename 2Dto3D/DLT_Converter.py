@@ -1,3 +1,4 @@
+
 import os
 import numpy as np
 import pandas as pd
@@ -11,7 +12,7 @@ header = list(range(4))
 
 #Get all te files
 v1_filepath = "V1 CSVs/"
-v2_filepath = "V2 CSVs/"
+v2_filepath = "V2 CSVs Adjusted Manual/"
 dlt_coef_filepath = "DLT Coefs/"
 
 v1_files = os.listdir(v1_filepath)
@@ -24,6 +25,7 @@ body_parts = ["head","midline2","tailbase","tailtip"]
 def DLTdvRecon(Ls, uvs):
 
     #uvs are in format [[v1_xs,v1_ys],[v2_xs,v2_ys]]
+
     Ls = np.array(Ls)
     uvs = np.array(uvs)
 
@@ -128,7 +130,7 @@ for v2f in v2_files:
         fish_out_df = pd.DataFrame.from_dict(fish_data_out_dict)
         #Replace to make new file name
         new_file_name = v2f.replace(v2_filepath,"").replace("V2","3D_").replace("TN","LN")
-        fish_out_df.to_csv("/Users/Ben/Desktop/Fish-Midline-Processer/2Dto3D/Final 3D/"+new_file_name)
+        fish_out_df.to_csv("/Users/Ben/Desktop/Fish-Midline-Processer/2Dto3D/Final 3D Manual/"+new_file_name)
 
 
 
