@@ -18,9 +18,9 @@ Inside of `2Dto3D/` there are two folders that contain all of the raw kinematic 
 
 Now that you have the 3D data, you can take that and put it into the main folder labeled `3D_Finished_Fish_Data_4P_gaps/`. This folder is named this becuase it has the complete 3D data, with 4 points on each fish, and gaps in some of the traces, to differeentiate it from other older versions of this data. Now, simply run `python 3D_data_files_to_csv_4P.py`, which will calaculate the important kinematic values for the school and place that data where the R analysis code will look for it. 
 
-## Turning Data
+## Single Fish Data
 
-Analyzing the turning data has two seperate parts to it. Firt you need to take the traces of individual fish and combine them randomly to create artifical "schools" and then you need to use the code in `Fish Turning Processor/` in order to determine out where the turns take place.
+Analyzing the single fish data has two seperate parts to it. Firt you need to take the traces of individual fish and combine them randomly to create artifical "schools" and then you need to use the code `Single_3D_data_files_to_csv_4P.py` in order to create the analysis on the single fish.
 
 ### Artifical School Creation
 

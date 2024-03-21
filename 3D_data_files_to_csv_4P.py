@@ -40,7 +40,6 @@ moving_average_n = 35
 #Tailbeat len is the median of all frame distances between tailbeats
 tailbeat_len = 19
 
-
 #Fish len is the median of all fish lengths in pixels
 #Scale is different becasue of calibration
 fish_len = 0.083197
@@ -55,6 +54,12 @@ fish_max_len = (fish_len + 3*fish_sd) / fish_len
 
 #Header list for reading the raw location CSVs
 header = list(range(4))
+
+def calc_mag_vec(p1):
+    return math.sqrt((p1[0])**2 + (p1[1])**2)
+
+def calc_mag(p1,p2):
+    return math.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2)
 
 def get_dist_np_2D(x1s,y1s,x2s,y2s):
     dist = np.sqrt((x1s-x2s)**2+(y1s-y2s)**2)
@@ -89,7 +94,7 @@ def mean_tailbeat_chunk(data,tailbeat_len):
         start = k//tailbeat_len * tailbeat_len
         end = (k//tailbeat_len + 1) * tailbeat_len
 
-        mean_data[k] = np.mean(data[start:end])
+        mean_data[k] = np.nanmean(data[start:end])
 
     return mean_data[::tailbeat_len]
 
@@ -101,12 +106,12 @@ def median_tailbeat_chunk(data,tailbeat_len):
         start = k//tailbeat_len * tailbeat_len
         end = (k//tailbeat_len + 1) * tailbeat_len
 
-        mean_data[k] = np.median(data[start:end])
+        mean_data[k] = np.nanmedian(data[start:end])
 
     return mean_data[::tailbeat_len]
 
 def angular_mean_tailbeat_chunk(data,tailbeat_len):
-    data = np.deg2rad(data)
+    #data = np.deg2rad(data)
 
     max_tb_frame = len(data)-len(data)%tailbeat_len
     mean_data = np.zeros(max_tb_frame)
@@ -117,11 +122,12 @@ def angular_mean_tailbeat_chunk(data,tailbeat_len):
 
         data_range = data[start:end]
 
-        cos_mean = np.mean(np.cos(data_range))
-        sin_mean = np.mean(np.sin(data_range))
+        cos_mean = np.nanmean(np.cos(data_range))
+        sin_mean = np.nanmean(np.sin(data_range))
 
-        #SIN then COSINE for arctan
-        angular_mean = np.rad2deg(np.arctan2(sin_mean,cos_mean))
+        #SIN then COSINE
+        #angular_mean = np.rad2deg(np.arctan2(sin_mean,cos_mean))
+        angular_mean = np.arctan2(sin_mean,cos_mean)
         mean_data[k] = angular_mean
 
     return mean_data[::tailbeat_len]
@@ -134,7 +140,7 @@ def mean_tailbeat_chunk_sync(data,tailbeat_len):
         start = k//tailbeat_len * tailbeat_len
         end = (k//tailbeat_len + 1) * tailbeat_len
 
-        mean_data[k] = np.mean(data[start:end])
+        mean_data[k] = np.nanmean(data[start:end])
 
     return np.power(2,abs(mean_data[::tailbeat_len])*-1)
 
@@ -205,7 +211,9 @@ class fish_data:
         #These are the summary stats for the fish 
         self.yaw_heading = []
         self.pitch_heading = []
+        self.yaw_heading_ps = []
         self.speed = []
+        self.accel = []
         self.zero_crossings = []
         self.tb_freq_reps = []
         self.body_lengths = []
@@ -218,13 +226,16 @@ class fish_data:
         self.remove_long_fish()
         self.remove_OOB_fish()
 
-        #This calculates the summary stats
+        #This calcualtes the summary stats
         self.calc_yaw_heading()
         self.calc_pitch_heading()
         self.calc_speed()
         self.calc_tailtip_perp()
         self.calc_tb_freq()
-        
+        self.calc_accel()
+        self.calc_yaw_heading_ps()
+
+        #self.graph_values()        
         
     def get_fish_BL(self):
         self.body_lengths = (get_dist_np_3D(self.head_x,self.head_y,self.head_z,self.midline_x,self.midline_y,self.midline_z) + 
@@ -232,7 +243,7 @@ class fish_data:
                              get_dist_np_3D(self.tailbase_x,self.tailbase_y,self.tailbase_z,self.tailtip_x,self.tailtip_y,self.tailtip_x))
 
     #Replaces the positional data with an NA if the fish is too long at that point in time
-    #Trying to remove some of the distortions from DLT
+    #Trying to remove some of the weirdness from calibration
     def remove_long_fish(self):
 
         is_too_long = self.body_lengths > fish_max_len
@@ -256,6 +267,7 @@ class fish_data:
     #Remove fish that are out of bounds of the space.
     # Fish are about 2 inches long, filming area is about 25 x 10 x 10, so 12 x 5 x 5 BL,
     # If they are out of that +- 2 BL remove them
+
     def remove_OOB_fish(self):
         min_x = -2
         max_x = 14
@@ -284,7 +296,7 @@ class fish_data:
         self.tailtip_y[is_OOB] = np.nan
         self.tailtip_z[is_OOB] = np.nan
 
-    #This function calclutes the yaw heading of the fish at each timepoint
+    #This function calcualtes the yaw heading of the fish at each timepoint
     #We are using body heading now, so midline to head, not head to next head
     def calc_yaw_heading(self):
         #Then we create a vector of the head minus the midline 
@@ -293,9 +305,15 @@ class fish_data:
 
         #Then we use arctan to calculate the heading based on the x and y point vectors
         #Becasue of roll we don't want to the last value since it will be wrong
-        self.yaw_heading = np.rad2deg(np.arctan2(self.vec_y,self.vec_x))
+        self.yaw_heading = np.arctan2(self.vec_y,self.vec_x)
 
-    #This function calculates the pitch heading of the fish at each timepoint
+        # print(self.vec_x)
+        # print(self.vec_y)
+        # print(self.yaw_heading)
+
+        # sys.exit()
+
+    #This function calcualtes the pitch heading of the fish at each timepoint
     #We are using body heading now, so midline to head, not head to next head
     def calc_pitch_heading(self):
         #Then we create a vector of the head minus the midline 
@@ -307,7 +325,29 @@ class fish_data:
 
         #Then we use arctan to calculate the heading based on the x and y point vectors
         #Becasue of roll we don't want to the last value since it will be wrong
-        self.pitch_heading = np.rad2deg(np.arctan2(self.vec_xy,self.vec_z))
+        self.pitch_heading = np.arctan2(self.vec_xy,self.vec_z)
+
+    #calcualtes the yaw heading change per second
+    def calc_yaw_heading_ps(self):
+
+        chunked_yaw_mean = angular_mean_tailbeat_chunk(self.yaw_heading, tailbeat_len)
+
+        chunked_yaw_heading_vec = np.column_stack((np.cos(chunked_yaw_mean), np.sin(chunked_yaw_mean)))
+        
+        dot_prods = np.zeros(len(chunked_yaw_heading_vec)) + np.nan
+        cross_prods = np.zeros(len(chunked_yaw_heading_vec)) + np.nan
+
+        for t in range(1,len(chunked_yaw_heading_vec)-1):
+
+            chunked_yaw_heading_vec_prev = chunked_yaw_heading_vec[t-1]
+            chunked_yaw_heading_vec_next = chunked_yaw_heading_vec[t+1]
+            chunked_yaw_heading_vec_prev_perp = [-1*chunked_yaw_heading_vec[t-1][1],chunked_yaw_heading_vec[t-1][0]]
+
+            dot_prods[t] = np.dot(chunked_yaw_heading_vec_prev,chunked_yaw_heading_vec_next)
+            cross_prods[t] = np.dot(chunked_yaw_heading_vec_next,chunked_yaw_heading_vec_prev_perp)
+
+        self.yaw_heading_ps = np.arccos(dot_prods) * np.sign(cross_prods) * fps/(2*tailbeat_len)
+        self.yaw_heading_ps = self.yaw_heading_ps[1:-1]
 
     def calc_speed(self):
         #First we get the next points on the fish
@@ -327,7 +367,14 @@ class fish_data:
         vec_x_flow = speed_vec_x - (self.flow)/fps
 
         #It is divided in order to get it in body lengths and then times fps to get BL/s
-        self.speed = np.sqrt(vec_x_flow**2+speed_vec_y**2+speed_vec_z**2)[:-1] * fps
+        self.speed = np.sqrt(vec_x_flow**2+speed_vec_y**2+speed_vec_z**2) * fps
+
+    def calc_accel(self):
+
+        chunked_speed = mean_tailbeat_chunk_sync(self.speed,tailbeat_len)
+
+        #remove the edge cases where rolling makes invalid values
+        self.accel = (np.roll(chunked_speed, -1) - np.roll(chunked_speed, 1))[1:-1] * fps/(2*tailbeat_len)
 
     def calc_tailtip_perp(self):
 
@@ -413,7 +460,7 @@ class fish_data:
         ax3.set_title("Speed")
 
         ax4 = plt.subplot(gs[1,2])
-        ax4.plot(range(len(self.heading)), self.heading)
+        ax4.plot(range(len(self.yaw_heading)), self.yaw_heading)
         ax4.set_title("Heading")
 
         plt.show()
@@ -441,6 +488,8 @@ class fish_comp:
         self.calc_speed_diff()
         self.calc_rayleigh_r()
 
+        self.calc_relative_x()
+
         #self.graph_values()
 
     def calc_dist(self):        
@@ -454,14 +503,41 @@ class fish_comp:
 
     def calc_angle(self):
         #Calculate the angle of the x and y difference in degrees
-        angle_diff = np.rad2deg(np.arctan2(self.y_diff,self.x_diff))
-        
-        self.angle = angle_diff
+        #angle_diff = np.rad2deg(np.arctan2(self.y_diff,self.x_diff))
+
+        #This makes it from 0 to 360
+        #angle_diff_360 = np.mod(abs(angle_diff-360),360)
+        #This rotates it so that 0 is at the top and 180 is below the fish for a sideways swimming fish model
+        #self.angle = np.mod(angle_diff_360+90,360)
+
+        #12/1/21: Back to making change notes. Now keeping it as the raw -180 to 180
+
+        #3/7/24 Doing this with dot products to not run into issues with axes
+
+        f1_head = np.column_stack((self.f1.head_x, self.f1.head_y))
+        f1_midline = np.column_stack((self.f1.midline_x, self.f1.midline_y))
+        f2_head = np.column_stack((self.f2.head_x, self.f2.head_y))
+
+        dot_prods = np.zeros(len(self.f1.head_x)) + np.nan
+        cross_prods = np.zeros(len(self.f1.head_x)) + np.nan
+
+        for t in range(len(self.f1.head_x)):
+
+            unit_f1_body_vec = (f1_head[t] - f1_midline[t]) / calc_mag(f1_head[t],f1_midline[t])
+            unit_f1_f2_head_vec  = (f2_head[t] - f1_head[t]) / calc_mag(f1_head[t],f2_head[t])
+            unit_f1_body_vec_perp = [-1*unit_f1_body_vec[1],unit_f1_body_vec[0]]
+
+            dot_prods[t] = np.dot(unit_f1_body_vec,unit_f1_f2_head_vec)
+            cross_prods[t] = np.dot(unit_f1_f2_head_vec,unit_f1_body_vec_perp)
+
+        self.angle = np.arccos(dot_prods) * np.sign(cross_prods)
+
+        #sys.exit()
 
     #Now with a dot product!
     def calc_yaw_heading_diff(self):
         f1_vector = np.asarray([self.f1.vec_x,self.f1.vec_y]).transpose()
-
+        #print(f1_vector)
         f2_vector = np.asarray([self.f2.vec_x,self.f2.vec_y]).transpose()
 
         self.yaw_heading_diff = np.zeros(len(self.f1.vec_x))
@@ -470,12 +546,12 @@ class fish_comp:
             dot_product = np.dot(f1_vector[i], f2_vector[i])
 
             prod_of_norms = np.linalg.norm(f1_vector[i]) * np.linalg.norm(f2_vector[i])
-            self.yaw_heading_diff[i] = np.degrees(np.arccos(dot_product / prod_of_norms))
+            self.yaw_heading_diff[i] = np.arccos(dot_product / prod_of_norms)
 
     #Now with a dot product!
     def calc_pitch_heading_diff(self):
         f1_vector = np.asarray([self.f1.vec_xy,self.f1.vec_z]).transpose()
-
+        #print(f1_vector)
         f2_vector = np.asarray([self.f2.vec_xy,self.f2.vec_z]).transpose()
 
         self.pitch_heading_diff = np.zeros(len(self.f1.vec_xy))
@@ -484,7 +560,7 @@ class fish_comp:
             dot_product = np.dot(f1_vector[i], f2_vector[i])
 
             prod_of_norms = np.linalg.norm(f1_vector[i]) * np.linalg.norm(f2_vector[i])
-            self.pitch_heading_diff[i] = np.degrees(np.arccos(dot_product / prod_of_norms))
+            self.pitch_heading_diff[i] = np.arccos(dot_product / prod_of_norms)
 
     def calc_heading_diff_filtered(self):
         #Makes sure that head wiggle doesn't mess up polarization
@@ -494,14 +570,27 @@ class fish_comp:
         self.f1.heading = savgol_filter(self.f1.heading,tailbeat_len,1)
         self.f2.heading = savgol_filter(self.f2.heading,tailbeat_len,1)
 
-        self.heading_diff = np.rad2deg(np.arctan2(np.sin(np.deg2rad(self.f1.heading-self.f2.heading)),
-                                                  np.cos(np.deg2rad(self.f1.heading-self.f2.heading))))
+        self.heading_diff = np.arctan2(np.sin(self.f1.heading-self.f2.heading),
+                                       np.cos(self.f1.heading-self.f2.heading))
 
         for i in range(len(self.f1.heading)):
             print(f1_heading_og[i],f2_heading_og[i],self.f1.heading[i],self.f2.heading[i],self.heading_diff[i])
 
     def calc_speed_diff(self):
         self.speed_diff = self.f1.speed - self.f2.speed
+
+    def calc_relative_x(self):
+        f1_head = np.column_stack((self.f1.head_x, self.f1.head_y))
+        f1_midline = np.column_stack((self.f1.midline_x, self.f1.midline_y))
+        f2_head = np.column_stack((self.f2.head_x, self.f2.head_y))
+
+        self.relative_x = np.zeros(len(self.f1.head_x)) + np.nan
+
+        for t in range(len(self.f1.head_x)):
+            unit_f1_body_vec = (f1_head[t] - f1_midline[t]) / calc_mag(f1_head[t],f1_midline[t])
+            f1_f2_head_vec  = (f2_head[t] - f1_head[t])
+
+            self.relative_x[t] = np.dot(f1_f2_head_vec,unit_f1_body_vec)
 
     def calc_tailbeat_offset(self):
         #Setup an array to hold all the zero crossing differences
@@ -539,6 +628,39 @@ class fish_comp:
         #So now we have the average difference tailbeat onset time
         # And we divide by tailbeat length to see out of phase they are
         self.tailbeat_offset_reps = np.repeat(tailbeat_means,tailbeat_lengths[:len(tailbeat_means)])/tailbeat_len
+
+    def calc_tailbeat_hilbert(self):
+
+        #First we remove the NAs from the arrays
+        f1_tailtip_na_rm = self.f1.tailtip_zero_centered[~np.isnan(self.f1.tailtip_zero_centered)]
+        f2_tailtip_na_rm = self.f2.tailtip_zero_centered[~np.isnan(self.f2.tailtip_zero_centered)]
+
+        #Then we get the hilbert signal and phase for both fish
+        f1_analytic_signal = hilbert(f1_tailtip_na_rm)
+        f1_instantaneous_phase = np.unwrap(np.angle(f1_analytic_signal))
+
+        f2_analytic_signal = hilbert(f2_tailtip_na_rm)
+        f2_instantaneous_phase = np.unwrap(np.angle(f2_analytic_signal))
+
+        #Then we put the NAs back into the arrays in the right places
+        f1_instantaneous_phase_nan = np.zeros(self.f1.tailtip_zero_centered.shape)
+        f1_instantaneous_phase_nan[f1_instantaneous_phase_nan == 0] = np.nan
+        f1_instantaneous_phase_nan[~np.isnan(self.f1.tailtip_zero_centered)] = f1_instantaneous_phase
+
+        f2_instantaneous_phase_nan = np.zeros(self.f2.tailtip_zero_centered.shape)
+        f2_instantaneous_phase_nan[f2_instantaneous_phase_nan == 0] = np.nan
+        f2_instantaneous_phase_nan[~np.isnan(self.f2.tailtip_zero_centered)] = f2_instantaneous_phase
+
+        #We smooth the signal and take the absolute values
+        abs_diff_smooth = savgol_filter(abs(f2_instantaneous_phase_nan - f1_instantaneous_phase_nan),11,1)
+
+        #Then we find the slope of the signal
+        sync_slope = np.gradient(abs_diff_smooth)
+
+        #We would do this, but instead we do it after averaging instead since the abs and the pwoer messes that up 
+        #norm_sync = np.power(2,abs(sync_slope)*-1)
+
+        self.tailbeat_offset_reps = sync_slope
 
     def calc_rayleigh_r(self):
         #We do the same first thing to calculate the phase offsets
@@ -584,7 +706,7 @@ class fish_comp:
             #Get the window
             rayleigh_window = tailbeat_offset_circ_scaled[i:i+window]
 
-            #Calculate the x and y coordinates on the unit circle from the angle
+            #Calcualte the x and y coordinates on the unit circle from the angle
             xs = np.cos(rayleigh_window)
             ys = np.sin(rayleigh_window)
 
@@ -602,15 +724,14 @@ class fish_comp:
 
         self.tailbeat_offset_reps = np.repeat(rayleigh_out,tailbeat_lengths[:len(rayleigh_out)])
 
-
     def graph_values(self):
         fig = plt.figure(figsize=(16, 10))
         gs = gridspec.GridSpec(ncols = 5, nrows = 3) 
 
         ax0 = plt.subplot(gs[:,0])
 
-        ax0.scatter(self.f1.head_x, self.f1.head_y, c = np.linspace(0,1,num = len(self.f1.head_x)), s = 2)
-        ax0.scatter(self.f2.head_x, self.f2.head_y, c = np.linspace(0,1,num = len(self.f2.head_x)), s = 2)
+        ax0.scatter(self.f1.head_x, self.f1.head_y, alpha = np.linspace(0,1,num = len(self.f1.head_x)), s = 2)
+        ax0.scatter(self.f2.head_x, self.f2.head_y, alpha = np.linspace(0,1,num = len(self.f2.head_x)), s = 2)
         ax0.set_title("Fish Path (Blue = Fish 1, Orange = Fish 2)")
 
         ax1 = plt.subplot(gs[0,1])
@@ -661,8 +782,6 @@ class fish_comp:
 
         plt.show()
 
-
-
 class school_comps:
     def __init__(self, fishes, n_fish, flow):
         self.fishes = fishes
@@ -697,9 +816,12 @@ class school_comps:
         self.calc_school_tb_freq()
         self.calc_school_polarization()
         self.calc_nnd()
-        self.calc_school_area()
+        self.calc_tailbeat_cor()
+        #self.calc_school_area()
 
+        #self.calc_school_groups_all_points_diff_xy_z()
         self.calc_school_groups_all_points()
+        #self.calc_school_groups()
 
         self.calc_school_height()
 
@@ -726,26 +848,11 @@ class school_comps:
         self.school_center_z = savgol_filter(self.school_center_z,31,1)
 
     def calc_school_speed(self):
-        #Based on the movement of the center of the school, not the mean of all the fish speeds
+        # Changing this to mean speed of the fish in the school
 
-        #First we get the next points for the group
-        group_x_next = np.roll(self.school_center_x, -1)
-        group_y_next = np.roll(self.school_center_y, -1)
-        group_z_next = np.roll(self.school_center_z, -1)
+        all_fish_speeds = [fish.speed for fish in self.fishes]
 
-        #Then we create a vector of the future point minus the last one
-        vec_x = group_x_next - self.school_center_x
-        vec_y = group_y_next - self.school_center_y
-        vec_z = group_z_next - self.school_center_z
-
-        #Then we add the flow to the x value
-        #Since (0,0) is in the upper left a positive vec_x value value means it is moving downstream
-        #so I should subtract the flow value 
-        #The flow value is mutliplied by the fish length since the vec_x values are in pixels, but it is in BLS so divide by fps
-        vec_x_flow = vec_x - (self.flow)/fps
-
-        #It is divided in order to get it in body lengths and then times fps to get BL/s
-        self.group_speed = np.sqrt(vec_x_flow**2+vec_y**2+vec_z**2)[:-1] * fps
+        self.group_speed = np.nanmean(all_fish_speeds, axis = 0)
 
     def calc_school_tb_freq(self):
         tb_collect = []
@@ -758,8 +865,8 @@ class school_comps:
 
     def calc_school_polarization(self):
         #formula from McKee 2020
-        sin_headings = np.sin(np.deg2rad([fish.yaw_heading for fish in self.fishes]))
-        cos_headings = np.cos(np.deg2rad([fish.yaw_heading for fish in self.fishes]))
+        sin_headings = np.sin([fish.yaw_heading for fish in self.fishes])
+        cos_headings = np.cos([fish.yaw_heading for fish in self.fishes])
 
         self.polarization = (1/self.n_fish)*np.sqrt(np.nansum(sin_headings, axis=0)**2 + np.nansum(cos_headings, axis=0)**2)
 
@@ -775,16 +882,27 @@ class school_comps:
                     fish1 = self.fishes[i]
                     fish2 = self.fishes[j]
 
-                    dists = get_dist_np_2D(fish1.head_x,fish1.head_y,fish2.head_x,fish2.head_y)
+                    #dists = get_dist_np_2D(fish1.head_x,fish1.head_y,fish2.head_x,fish2.head_y)
 
-                    #dists = get_dist_np_3D(fish1.head_x,fish1.head_y,fish1.head_z,fish2.head_x,fish2.head_y,fish2.head_z)
+                    dists = get_dist_np_3D(fish1.head_x,fish1.head_y,fish1.head_z,fish2.head_x,fish2.head_y,fish2.head_z)
 
                     for t in range(len(self.school_center_x)):
                         nnd_array[t][i][j] = dists[t]
 
         #Then we get the mins of each row (or column, they are the same), and then get the mean for the mean
         # NND for that timepoint
-        self.nearest_neighbor_distance = np.nanmean(np.nanmin(nnd_array,axis = 1),axis = 1)
+
+        min_array = np.nanmin(nnd_array,axis = 1)
+
+        #We then NAN out all timepoints where we don't have at least 4 fish to make up the school at that time
+        num_nans = np.count_nonzero(np.isnan(min_array), axis=1).astype(np.float) 
+        num_nans[num_nans > 4] = np.nan
+        num_nans[num_nans <= 4] = 1
+
+        self.nearest_neighbor_distance = np.nanmean(np.nanmin(nnd_array,axis = 1), axis = 1)*num_nans
+        
+    def calc_tailbeat_cor(self):
+        pass
 
     def calc_school_area(self):
         school_xs = np.asarray([fish.head_x for fish in self.fishes])
@@ -822,6 +940,61 @@ class school_comps:
                 hull = ConvexHull(points)
 
                 self.school_areas[i] = hull.volume**2
+
+    def calc_school_groups(self):
+        min_BL_for_groups = 1.5
+
+        school_xs = np.asarray([fish.head_x for fish in self.fishes])
+        school_ys = np.asarray([fish.head_y for fish in self.fishes])
+        school_zs = np.asarray([fish.head_z for fish in self.fishes])
+
+        self.school_groups = [np.nan for i in range(len(school_xs[0]))]
+
+        for i in range(0,len(school_xs[0])):
+
+            x_row = school_xs[:,i]
+            y_row = school_ys[:,i]
+            z_row = school_zs[:,i]
+
+            mask = ~np.isnan(x_row)
+
+            x_row = x_row[mask]
+            y_row = y_row[mask]
+            z_row = z_row[mask]
+
+            mask = ~np.isnan(y_row)
+
+            x_row = x_row[mask]
+            y_row = y_row[mask]
+            z_row = z_row[mask]
+
+            mask = ~np.isnan(z_row)
+
+            x_row = x_row[mask]
+            y_row = y_row[mask]
+            z_row = z_row[mask]
+
+            points = np.asarray([item for item in zip(x_row, y_row, z_row)])
+
+            dm = np.zeros((len(points),len(points)))
+
+            points = points
+
+            dm = distance_matrix(points,points)
+
+            dm_min = dm <= min_BL_for_groups
+
+            G = nx.from_numpy_array(dm_min)
+
+            n_groups = len([len(c) for c in sorted(nx.connected_components(G), key=len, reverse=True)])
+
+            self.school_groups[i] = n_groups
+
+            # pos = nx.spring_layout(G)
+            # nx.draw(G, pos, with_labels=True)
+            # plt.show()
+
+            # sys.exit()
 
     def calc_school_groups_all_points(self):
         min_BL_for_groups = 2
@@ -895,6 +1068,121 @@ class school_comps:
             # nx.draw(G, pos, with_labels=True)
             # plt.show()
 
+            # sys.exit()
+
+    def calc_school_groups_all_points_diff_xy_z(self):
+        min_BL_for_groups_xy = 2
+        min_BL_for_groups_z = 1.5
+
+        school_xs = np.asarray([fish.head_x for fish in self.fishes])
+
+        #Get all the fish head and tailtip points
+        school_heads = np.asarray([[fish.head_x for fish in self.fishes],[fish.head_y for fish in self.fishes],[fish.head_z for fish in self.fishes]])
+        school_midlines = np.asarray([[fish.midline_x for fish in self.fishes],[fish.midline_y for fish in self.fishes],[fish.midline_z for fish in self.fishes]])
+        school_tailbases = np.asarray([[fish.tailbase_x for fish in self.fishes],[fish.tailbase_y for fish in self.fishes],[fish.tailbase_z for fish in self.fishes]])
+        school_tailtips = np.asarray([[fish.tailtip_x for fish in self.fishes],[fish.tailtip_y for fish in self.fishes],[fish.tailtip_z for fish in self.fishes]])
+
+        #Set up the final array to be filled in
+        self.school_groups = [np.nan for i in range(len(school_xs[0]))]
+
+        for i in range(len(school_xs[0])):
+
+            #Get just the points for the current frame
+            head_points_xy = np.asarray([item for item in zip(school_heads[0][:,i], school_heads[1][:,i])])
+            midline_points_xy = np.asarray([item for item in zip(school_midlines[0][:,i], school_midlines[1][:,i])])
+            tailbase_points_xy = np.asarray([item for item in zip(school_tailbases[0][:,i], school_tailbases[1][:,i])])
+            tailtip_points_xy = np.asarray([item for item in zip(school_tailtips[0][:,i], school_tailtips[1][:,i])])
+
+            #Remove NANs from head and tailtip so they aren't added as nodes later
+            mask = ~np.isnan(head_points_xy) & ~np.isnan(midline_points_xy) & ~np.isnan(tailbase_points_xy) & ~np.isnan(tailtip_points_xy)
+
+            #Reshape to make them fit and remove NANs with mask
+            head_points_xy = head_points_xy[mask]
+            head_points_xy = head_points_xy.reshape((int(len(head_points_xy)/2), 2))
+
+            midline_points_xy = midline_points_xy[mask]
+            midline_points_xy = midline_points_xy.reshape((int(len(midline_points_xy)/2), 2))
+
+            tailbase_points_xy = tailbase_points_xy[mask]
+            tailbase_points_xy = tailbase_points_xy.reshape((int(len(tailbase_points_xy)/2), 2))
+
+            tailtip_points_xy = tailtip_points_xy[mask]
+            tailtip_points_xy = tailtip_points_xy.reshape((int(len(tailtip_points_xy)/2), 2))
+
+            #Save them in an arrayto go over
+            point_types_xy = [head_points_xy,midline_points_xy,tailbase_points_xy,tailtip_points_xy]
+
+            dm_array_xy = []
+
+            #Get head vs all other points
+            for p_other in point_types_xy:
+                dm_array_xy.append(distance_matrix(head_points_xy,p_other))
+
+            #And then we do that all again for the z points
+
+            #Get just the points for the current frame
+            head_points_z = np.asarray([item for item in zip(school_heads[2][:,i])])
+            midline_points_z = np.asarray([item for item in zip(school_midlines[2][:,i])])
+            tailbase_points_z = np.asarray([item for item in zip(school_tailbases[2][:,i])])
+            tailtip_points_z = np.asarray([item for item in zip(school_tailtips[2][:,i])])
+
+            #Remove NANs from head and tailtip so they aren't added as nodes later
+            mask = ~np.isnan(head_points_z) & ~np.isnan(midline_points_z) & ~np.isnan(tailbase_points_z) & ~np.isnan(tailtip_points_z)
+
+            #Reshape to make them fit and remove NANs with mask
+            head_points_z = head_points_z[mask]
+            head_points_z = head_points_z.reshape((len(head_points_z), 1))
+
+            midline_points_z = midline_points_z[mask]
+            midline_points_z = midline_points_z.reshape((len(midline_points_z), 1))
+
+            tailbase_points_z = tailbase_points_z[mask]
+            tailbase_points_z = tailbase_points_z.reshape((len(tailbase_points_z), 1))
+
+            tailtip_points_z = tailtip_points_z[mask]
+            tailtip_points_z = tailtip_points_z.reshape((len(tailtip_points_z), 1))
+
+            #Save them in an arrayto go over
+            point_types_z = [head_points_z,midline_points_z,tailbase_points_z,tailtip_points_z]
+
+            dm_array_z = []
+
+            #Get head vs all other points
+            for p_other in point_types_z:
+                dm_array_z.append(distance_matrix(head_points_z,p_other))
+
+            #Turn into an array
+            dm_array_xy = np.asarray(dm_array_xy)
+            dm_array_z = np.asarray(dm_array_z)
+            #print(dm_array)
+
+            #Get the shortest distance combo of the four
+            dm_min_xy = np.nanmin(dm_array_xy, axis = 0)
+            dm_min_z = np.nanmin(dm_array_z, axis = 0)
+            #print(dm_min)
+
+            #Divide by fish length
+            dm_min_xy = dm_min_xy
+            dm_min_z = dm_min_z
+
+            #Find where it is less than the set BL for grouping
+            dm_min_bl_xy = dm_min_xy <= min_BL_for_groups_xy
+            dm_min_bl_z = dm_min_z <= min_BL_for_groups_z
+
+            dm_min_bl_both = dm_min_bl_xy & dm_min_bl_z
+
+            #Make into a graph and then get the number of points.
+            G = nx.from_numpy_array(dm_min_bl_both)
+
+            n_groups = len([len(c) for c in sorted(nx.connected_components(G), key=len, reverse=True)])
+
+            self.school_groups[i] = n_groups
+
+            # pos = nx.spring_layout(G)
+            # nx.draw(G, pos, with_labels=True)
+            # plt.show()
+            #sys.exit()
+
     def calc_school_height(self):
         school_zs = np.asarray([fish.head_z for fish in self.fishes])
 
@@ -967,10 +1255,19 @@ class trial:
 
         #This sets the indexes so I can avoid any issues with having Fish 1 always be compared first 
         # and so on and so forth
+        
+        #Now we're going to do all the fish both ways to make NND stuff easier
         self.fish_comp_indexes = [[i,j] for i in range(n_fish) for j in range(i+1,n_fish)]
 
         for pair in self.fish_comp_indexes:
             random.shuffle(pair)
+
+        # self.fish_comp_indexes = [[i,j] for i in range(n_fish) for j in range(n_fish)]
+
+        # #Remove matched pairs
+        # matched_index = [0,9,18,27,36,45,56,63]
+
+        # self.fish_comp_indexes = np.delete(self.fish_comp_indexes, matched_index, axis = 0)
 
         self.fish_comps = [[0 for j in range(self.n_fish)] for i in range(self.n_fish)]
 
@@ -1054,55 +1351,74 @@ class trial:
             chunked_y_diffs = mean_tailbeat_chunk(current_comp.y_diff,tailbeat_len)
             chunked_z_diffs = mean_tailbeat_chunk(current_comp.z_diff,tailbeat_len)
             chunked_dists = get_dist_np_3D(0,0,0,chunked_x_diffs,chunked_y_diffs,chunked_z_diffs)
-            chunked_angles = mean_tailbeat_chunk(current_comp.angle,tailbeat_len)
+            chunked_angles = angular_mean_tailbeat_chunk(current_comp.angle,tailbeat_len)
             chunked_yaw_heading_diffs = angular_mean_tailbeat_chunk(current_comp.yaw_heading_diff,tailbeat_len)
             chunked_pitch_heading_diffs = angular_mean_tailbeat_chunk(current_comp.pitch_heading_diff,tailbeat_len)
             chunked_f1_speed = mean_tailbeat_chunk(current_comp.f1.speed,tailbeat_len)
             chunked_f2_speed = mean_tailbeat_chunk(current_comp.f2.speed,tailbeat_len)
+            chunked_f1_accel = current_comp.f1.accel
+            chunked_f2_accel = current_comp.f2.accel
             chunked_f1_X = mean_tailbeat_chunk(current_comp.f1.head_x,tailbeat_len)
             chunked_f1_Y = mean_tailbeat_chunk(current_comp.f1.head_y,tailbeat_len)
             chunked_f1_Z = mean_tailbeat_chunk(current_comp.f1.head_z,tailbeat_len)
             chunked_f2_X = mean_tailbeat_chunk(current_comp.f2.head_x,tailbeat_len)
             chunked_f2_Y = mean_tailbeat_chunk(current_comp.f2.head_y,tailbeat_len)
             chunked_f2_Z = mean_tailbeat_chunk(current_comp.f2.head_z,tailbeat_len)
-            chunked_f1_yaw_heading = mean_tailbeat_chunk(current_comp.f1.yaw_heading,tailbeat_len)
-            chunked_f2_yaw_heading = mean_tailbeat_chunk(current_comp.f2.yaw_heading,tailbeat_len)
+            chunked_relative_x = mean_tailbeat_chunk(current_comp.relative_x,tailbeat_len)
+            chunked_f1_yaw_heading = angular_mean_tailbeat_chunk(current_comp.f1.yaw_heading,tailbeat_len)
+            chunked_f2_yaw_heading = angular_mean_tailbeat_chunk(current_comp.f2.yaw_heading,tailbeat_len)
+            chunked_f1_yaw_heading_ps = current_comp.f1.yaw_heading_ps
+            chunked_f2_yaw_heading_ps = current_comp.f2.yaw_heading_ps
             chunked_speed_diffs = mean_tailbeat_chunk(current_comp.speed_diff,tailbeat_len)
-            chunked_tailbeat_offsets = mean_tailbeat_chunk(current_comp.tailbeat_offset_reps,tailbeat_len)
+            #chunked_tailbeat_offsets = mean_tailbeat_chunk(current_comp.tailbeat_offset_reps,tailbeat_len)
 
-            short_data_length = min([len(chunked_x_diffs),len(chunked_y_diffs),len(chunked_dists),
+            min_data_length = min([len(chunked_x_diffs),len(chunked_y_diffs),len(chunked_dists),
                                      len(chunked_angles),len(chunked_yaw_heading_diffs),len(chunked_pitch_heading_diffs),
-                                     len(chunked_speed_diffs),
-                                     len(chunked_tailbeat_offsets)])
+                                     len(chunked_f1_yaw_heading_ps),len(chunked_f2_yaw_heading_ps),
+                                     len(chunked_f1_accel),len(chunked_f2_accel),
+                                     len(chunked_speed_diffs)])
 
-            d = {'Year': np.repeat(self.year,short_data_length),
-                 'Month': np.repeat(self.month,short_data_length),
-                 'Day': np.repeat(self.day,short_data_length),
-                 'Trial': np.repeat(self.trial,short_data_length), 
-                 'Ablation': np.repeat(self.abalation,short_data_length), 
-                 'Darkness': np.repeat(self.darkness,short_data_length), 
-                 'Flow': np.repeat(self.flow,short_data_length), 
-                 'Fish': np.repeat(current_comp.name,short_data_length),
-                 'Tailbeat_Num': range(short_data_length),
-                 'X_Distance': chunked_x_diffs[:short_data_length], 
-                 'Y_Distance': chunked_y_diffs[:short_data_length],
-                 'Z_Distance': chunked_z_diffs[:short_data_length], 
-                 'Distance': chunked_dists[:short_data_length],
-                 'Angle': chunked_angles[:short_data_length],
-                 'Yaw_Heading_Diff': chunked_yaw_heading_diffs[:short_data_length],
-                 'Pitch_Heading_Diff': chunked_pitch_heading_diffs[:short_data_length],
-                 'Fish1_Speed': chunked_f1_speed[:short_data_length],
-                 'Fish2_Speed': chunked_f2_speed[:short_data_length],
-                 'Fish1_X': chunked_f1_X[:short_data_length],
-                 'Fish1_Y': chunked_f1_Y[:short_data_length],
-                 'Fish1_Z': chunked_f1_Z[:short_data_length],
-                 'Fish2_X': chunked_f2_X[:short_data_length],
-                 'Fish2_Y': chunked_f2_Y[:short_data_length],
-                 'Fish2_Z': chunked_f2_Z[:short_data_length],
-                 'Fish1_Yaw_Heading': chunked_f1_yaw_heading[:short_data_length],
-                 'Fish2_Yaw_Heading': chunked_f2_yaw_heading[:short_data_length],
-                 'Speed_Diff': chunked_speed_diffs[:short_data_length],
-                 'Sync': chunked_tailbeat_offsets[:short_data_length]}
+            max_data_length = max([len(chunked_x_diffs),len(chunked_y_diffs),len(chunked_dists),
+                                     len(chunked_angles),len(chunked_yaw_heading_diffs),len(chunked_pitch_heading_diffs),
+                                     len(chunked_f1_yaw_heading_ps),len(chunked_f2_yaw_heading_ps),
+                                     len(chunked_f1_accel),len(chunked_f2_accel),
+                                     len(chunked_speed_diffs)])
+
+            tailbeat_offset = (max_data_length - min_data_length) // 2
+
+            d = {'Year': np.repeat(self.year,min_data_length),
+                 'Month': np.repeat(self.month,min_data_length),
+                 'Day': np.repeat(self.day,min_data_length),
+                 'Trial': np.repeat(self.trial,min_data_length), 
+                 'Ablation': np.repeat(self.abalation,min_data_length), 
+                 'Darkness': np.repeat(self.darkness,min_data_length), 
+                 'Flow': np.repeat(self.flow,min_data_length), 
+                 'Fish': np.repeat(current_comp.name,min_data_length),
+                 'Tailbeat_Num': range(tailbeat_offset,max_data_length-tailbeat_offset),
+                 'X_Distance': chunked_x_diffs[tailbeat_offset:-tailbeat_offset], 
+                 'Y_Distance': chunked_y_diffs[tailbeat_offset:-tailbeat_offset],
+                 'Z_Distance': chunked_z_diffs[tailbeat_offset:-tailbeat_offset], 
+                 'Distance': chunked_dists[tailbeat_offset:-tailbeat_offset],
+                 'Angle': chunked_angles[tailbeat_offset:-tailbeat_offset],
+                 'Yaw_Heading_Diff': chunked_yaw_heading_diffs[tailbeat_offset:-tailbeat_offset],
+                 'Pitch_Heading_Diff': chunked_pitch_heading_diffs[tailbeat_offset:-tailbeat_offset],
+                 'Fish1_Speed': chunked_f1_speed[tailbeat_offset:-tailbeat_offset],
+                 'Fish2_Speed': chunked_f2_speed[tailbeat_offset:-tailbeat_offset],
+                 'Fish1_Accel': chunked_f1_accel,
+                 'Fish2_Accel': chunked_f2_accel,
+                 'Fish1_X': chunked_f1_X[tailbeat_offset:-tailbeat_offset],
+                 'Fish1_Y': chunked_f1_Y[tailbeat_offset:-tailbeat_offset],
+                 'Fish1_Z': chunked_f1_Z[tailbeat_offset:-tailbeat_offset],
+                 'Fish2_X': chunked_f2_X[tailbeat_offset:-tailbeat_offset],
+                 'Fish2_Y': chunked_f2_Y[tailbeat_offset:-tailbeat_offset],
+                 'Fish2_Z': chunked_f2_Z[tailbeat_offset:-tailbeat_offset],
+                 'Relative_X': chunked_relative_x[tailbeat_offset:-tailbeat_offset],
+                 'Fish1_Yaw_Heading': chunked_f1_yaw_heading[tailbeat_offset:-tailbeat_offset],
+                 'Fish2_Yaw_Heading': chunked_f2_yaw_heading[tailbeat_offset:-tailbeat_offset],
+                 'Fish1_Yaw_Heading_PS': chunked_f1_yaw_heading_ps,
+                 'Fish2_Yaw_Heading_PS': chunked_f2_yaw_heading_ps,
+                 'Speed_Diff': chunked_speed_diffs[tailbeat_offset:-tailbeat_offset]} #,
+                 #'Sync': chunked_tailbeat_offsets[:short_data_length]}
 
             if firstfish:
                 out_data = pd.DataFrame(data=d)
@@ -1187,6 +1503,7 @@ class trial:
                                  len(chunked_y_sd),len(chunked_group_speed),len(chunked_group_tb_freq),
                                  len(chunked_nnd),len(chunked_area),len(chunked_groups),len(chunked_height)])
 
+
         d = {'Year': np.repeat(self.year,short_data_length),
              'Month': np.repeat(self.month,short_data_length),
              'Day': np.repeat(self.day,short_data_length),
@@ -1214,11 +1531,12 @@ class trial:
 
         return(out_data)
 
+
 data_folder = "3D_Finished_Fish_Data_4P_gaps/"
 
 trials = []
 
-single_file = ""
+single_file = "" #"2020_07_28_11" # "2020_07_28_03_LN_DN_F2" #"2021_10_06_36_LY_DN_F2_3D_DLC_dlcrnetms5_DLC_2-2_4P_8F_Light_VentralMay10shuffle1_100000_el_filtered.csv"
 
 for file_name in os.listdir(data_folder):
     if file_name.endswith(".csv") and single_file in file_name:
@@ -1227,6 +1545,9 @@ for file_name in os.listdir(data_folder):
         trials.append(trial(file_name,data_folder))
 
 first_trial = True
+
+#pair = trials[0].fish_comp_indexes[3]
+#trials[0].fish_comps[pair[0]][pair[1]].graph_values()
 
 print("Creating CSVs...")
 
@@ -1248,4 +1569,56 @@ fish_comp_dataframe.to_csv("Fish_Comp_Values_3D.csv")
 fish_raw_comp_dataframe.to_csv("Fish_Raw_Comp_Values_3D.csv")
 fish_school_dataframe.to_csv("Fish_School_Values_3D.csv")
 
+# #Recalculate when new data is added
+# all_trials_tailbeat_lens = []
+# all_trials_fish_lens = []
+
+# for trial in trials:
+#     all_trials_tailbeat_lens.extend(np.asarray(trial.return_tailbeat_lens()))
+#     all_trials_fish_lens.extend(np.asarray(trial.return_fish_lens()))
+
+# all_trials_fish_lens = np.asarray(all_trials_fish_lens)*fish_len
+# #all_trials_fish_lens = all_trials_fish_lens[all_trials_fish_lens < 1.25]
+
+# print("Tailbeat Len Median")
+# print(np.nanmedian(all_trials_tailbeat_lens)) #18
+
+# print("Fish Len Median")
+# print(np.nanmedian(all_trials_fish_lens))
+
+# print("Fish Len Mean")
+# print(np.nanmean(all_trials_fish_lens))
+
+# q75, q25 = np.nanpercentile(all_trials_fish_lens, [75 ,25])
+# iqr = q75 - q25
+
+# print("Fish Len IQR")
+# print(iqr)
+
+# print("Fish Len SD")
+# print(np.nanstd(all_trials_fish_lens))
+
+# print("Fish Len Max?")
+# print(np.nanmean(all_trials_fish_lens) + 3*np.nanstd(all_trials_fish_lens))
+
+# print("Fish Len Max Observed")
+# print(np.nanmax(all_trials_fish_lens))
+
+# fig,ax = plt.subplots(1,2)
+# ax[0].hist(all_trials_fish_lens, bins = 30)
+# ax[1].hist(np.log(all_trials_fish_lens), bins = 30)
+# #ax.set_xlim(0,1.5)
+# plt.show()
+
+
+# Fish Len Median
+# 0.08319703658979358
+# Fish Len Mean
+# 0.19260629745081745
+# Fish Len SD
+# 0.629985168386883
+# Fish Len Max?
+# 2.0825618026114663
+# Fish Len Max Observed
+# 26.877819857535037
 
